@@ -1,0 +1,1107 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roller Coaster Energy Physics</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#060c1a; }
+body { display:flex; flex-direction:column; font-family:'DM Mono', monospace; color:#d8e8ff; }
+
+/* ── TOPBAR ── */
+#topbar {
+  display:flex; align-items:center; gap:0.8rem;
+  padding:0.45rem 1rem;
+  background:rgba(6,10,22,0.95);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  flex-shrink:0; flex-wrap:wrap;
+}
+h1 { font-family:'Bebas Neue'; font-size:1.4rem; letter-spacing:0.1em; color:#ffc844;
+     text-shadow:0 0 20px rgba(255,200,68,0.4); white-space:nowrap; }
+
+.stat { display:flex; flex-direction:column; align-items:center;
+        padding:0.15rem 0.6rem; border:1px solid rgba(255,255,255,0.1);
+        border-radius:4px; min-width:78px; background:rgba(0,0,0,0.3); }
+.stat-l { font-size:0.46rem; text-transform:uppercase; letter-spacing:0.12em; color:#5060a0; }
+.stat-v { font-size:0.82rem; font-weight:500; line-height:1.4; }
+.v-spd { color:#fff; }
+.v-h   { color:#44aaff; text-shadow:0 0 8px #44aaff; }
+.v-ke  { color:#ff7733; text-shadow:0 0 8px #ff7733; }
+.v-pe  { color:#33aaff; text-shadow:0 0 8px #33aaff; }
+.v-te  { color:#44ff88; text-shadow:0 0 8px #44ff88; }
+.v-gf  { color:#ffc844; text-shadow:0 0 8px #ffc844; }
+.v-ph  { font-size:0.68rem; }
+.v-ph.lift { color:#ffc844; }
+.v-ph.fall { color:#ff7733; }
+.v-ph.loop { color:#44aaff; }
+.v-ph.done { color:#44ff88; }
+
+.btns { display:flex; gap:0.4rem; margin-left:auto; flex-shrink:0; }
+button {
+  font-family:'DM Mono'; font-size:0.68rem; letter-spacing:0.06em;
+  padding:0.38rem 0.85rem; border-radius:4px; cursor:pointer;
+  border:1px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05); color:#d8e8ff;
+  transition:all 0.15s; text-transform:uppercase;
+}
+button:hover { background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.3); }
+#btnLaunch { border-color:#ffc844; color:#ffc844; background:rgba(255,200,68,0.1); }
+#btnLaunch:hover { background:rgba(255,200,68,0.22); box-shadow:0 0 12px rgba(255,200,68,0.25); }
+#btnLaunch:disabled { opacity:0.3; cursor:not-allowed; }
+#btnPause { border-color:rgba(100,180,255,0.5); color:#88ccff; }
+#btnPause:hover { background:rgba(100,180,255,0.15); }
+#btnPause:disabled { opacity:0.3; cursor:not-allowed; }
+#btnReset { border-color:rgba(255,100,80,0.5); color:#ff8866; }
+
+/* ── MAIN ── */
+#main { display:flex; flex:1; overflow:hidden; min-height:0; }
+
+/* ── CANVAS ── */
+#wrap { position:relative; flex:1; overflow:hidden; }
+canvas { position:absolute; inset:0; display:block; }
+#c0 { z-index:1; } /* bg */
+#c1 { z-index:2; } /* track */
+#c2 { z-index:3; pointer-events:none; } /* cart + fx */
+
+#pbar { position:absolute; bottom:0; left:0; height:3px; z-index:10;
+        background:linear-gradient(90deg,#ff7733,#ffc844,#44aaff);
+        box-shadow:0 0 8px #ffc844; transition:width 0.04s; pointer-events:none; }
+
+/* ── RIGHT PANEL ── */
+#panel {
+  width:265px; flex-shrink:0;
+  background:rgba(6,10,22,0.96);
+  border-left:1px solid rgba(255,255,255,0.08);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.psec { padding:0.8rem 0.9rem; border-bottom:1px solid rgba(255,255,255,0.06); }
+.pt { font-size:0.5rem; text-transform:uppercase; letter-spacing:0.15em;
+      color:#4050a0; margin-bottom:0.65rem; }
+
+/* graph */
+#egraph { display:block; border:1px solid rgba(255,255,255,0.08);
+          border-radius:3px; background:rgba(0,0,0,0.5); }
+.eleg { display:flex; gap:0.65rem; margin-top:0.4rem; flex-wrap:wrap; }
+.eli { display:flex; align-items:center; gap:0.28rem; font-size:0.52rem; color:#5060a0; }
+.eld { width:7px; height:7px; border-radius:50%; }
+
+/* energy bar */
+.ebar { height:16px; display:flex; border-radius:3px; overflow:hidden;
+        border:1px solid rgba(255,255,255,0.08); margin-top:0.45rem; }
+.ebar-ke  { background:#ff7733; transition:width 0.04s; }
+.ebar-pe  { background:#33aaff; transition:width 0.04s; }
+.ebar-los { background:rgba(255,50,80,0.55); transition:width 0.04s; }
+.ebar-lbl { display:flex; justify-content:space-between; font-size:0.48rem;
+            color:#4050a0; margin-top:0.2rem; }
+
+/* readout grid */
+.rg { display:grid; grid-template-columns:1fr 1fr; gap:0.38rem; }
+.ri { background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.07);
+      border-radius:3px; padding:0.32rem 0.45rem; }
+.rl { font-size:0.46rem; text-transform:uppercase; letter-spacing:0.08em; color:#4050a0; }
+.rv { font-size:0.78rem; font-weight:500; margin-top:0.1rem; }
+
+/* loss bar */
+.lbar-w { margin-top:0.55rem; }
+.lbar-lbl { display:flex; justify-content:space-between; font-size:0.52rem; color:#4050a0; margin-bottom:0.18rem; }
+.lbar-t { height:3px; background:rgba(255,255,255,0.1); border-radius:2px; }
+.lbar-f { height:3px; background:#ff3355; border-radius:2px; box-shadow:0 0 5px #ff3355; transition:width 0.1s; }
+
+/* sliders */
+.sl { display:flex; flex-direction:column; gap:0.26rem; margin-bottom:0.55rem; }
+.sl-l { display:flex; justify-content:space-between; font-size:0.56rem; color:#4050a0; }
+.sl-l span { color:#ffc844; }
+input[type=range] { -webkit-appearance:none; width:100%; height:2px;
+  background:rgba(255,255,255,0.15); border-radius:2px; outline:none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
+  width:11px; height:11px; border-radius:50%; background:#ffc844; cursor:pointer;
+  box-shadow:0 0 5px #ffc844; }
+
+/* formulae */
+.fbox { padding:0.4rem 0.55rem; border-radius:3px; margin-bottom:0.4rem; font-size:0.62rem; line-height:1.8; }
+.fbox.ke { border:1px solid rgba(255,119,51,0.3); background:rgba(255,119,51,0.07); color:#ff9955; }
+.fbox.pe { border:1px solid rgba(51,170,255,0.3); background:rgba(51,170,255,0.07); color:#66bbff; }
+.fbox.te { border:1px solid rgba(68,255,136,0.3); background:rgba(68,255,136,0.07); color:#66ffaa; }
+.fbox small { font-size:0.52rem; opacity:0.7; }
+
+/* demo */
+#demo {
+  position:absolute; bottom:1.2rem; left:50%; transform:translateX(-50%);
+  z-index:20; background:rgba(4,8,18,0.96);
+  border:1px solid rgba(255,200,68,0.3); border-radius:8px;
+  padding:0.9rem 1.2rem; max-width:460px; width:92%;
+  box-shadow:0 8px 32px rgba(0,0,0,0.7);
+  transition:opacity 0.35s, transform 0.35s;
+}
+#demo.hide { opacity:0; transform:translateX(-50%) translateY(16px); pointer-events:none; }
+.dsn { font-size:0.5rem; letter-spacing:0.14em; text-transform:uppercase; color:#ffc844; margin-bottom:0.22rem; }
+.dti { font-family:'Bebas Neue'; font-size:1.2rem; color:#fff; letter-spacing:0.05em; line-height:1.1; margin-bottom:0.35rem; }
+.dbo { font-size:0.65rem; line-height:1.75; color:#8898c8; margin-bottom:0.75rem; }
+.dbo strong { color:#ffc844; }
+.dbo .eq { display:inline-block; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+           border-radius:3px; padding:0.08rem 0.35rem; color:#aaccff; font-size:0.63rem; }
+.dnav { display:flex; justify-content:space-between; align-items:center; }
+.ddots { display:flex; gap:0.35rem; }
+.ddot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.15); transition:all 0.2s; }
+.ddot.on { background:#ffc844; box-shadow:0 0 5px #ffc844; }
+.dbtns { display:flex; gap:0.38rem; }
+.dbtn { font-family:'DM Mono'; font-size:0.62rem; letter-spacing:0.05em;
+        padding:0.34rem 0.8rem; border-radius:4px; cursor:pointer;
+        border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05); color:#d8e8ff; transition:all 0.15s; }
+.dbtn:hover { background:rgba(255,255,255,0.1); }
+.dbtn.nx { background:rgba(255,200,68,0.14); border-color:#ffc844; color:#ffc844; }
+.dbtn.nx:hover { background:rgba(255,200,68,0.26); }
+.dbtn.cl { border-color:rgba(255,100,80,0.4); color:#ff8866; font-size:0.58rem; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>🎢 CoasterPhysics</h1>
+  <div class="stat"><div class="stat-l">Phase</div><div class="stat-v v-ph lift" id="sPhase">READY</div></div>
+  <div class="stat"><div class="stat-l">Speed</div><div class="stat-v v-spd" id="sSpd">0.0 m/s</div></div>
+  <div class="stat"><div class="stat-l">Height</div><div class="stat-v v-h" id="sH">0.0 m</div></div>
+  <div class="stat"><div class="stat-l">KE</div><div class="stat-v v-ke" id="sKE">—</div></div>
+  <div class="stat"><div class="stat-l">PE</div><div class="stat-v v-pe" id="sPE">—</div></div>
+  <div class="stat"><div class="stat-l">Total E</div><div class="stat-v v-te" id="sTE">—</div></div>
+  <div class="stat"><div class="stat-l">G-Force</div><div class="stat-v v-gf" id="sGF">—</div></div>
+  <div class="btns">
+    <button onclick="showDemo()">📖 Guide</button>
+    <button id="btnLaunch" onclick="launch()">▶ Launch</button>
+    <button id="btnPause" onclick="togglePause()" disabled>⏸ Pause</button>
+    <button id="btnReset" onclick="reset()">↺ Reset</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="wrap">
+    <canvas id="c0"></canvas>
+    <canvas id="c1"></canvas>
+    <canvas id="c2"></canvas>
+    <div id="pbar" style="width:0%"></div>
+  </div>
+  <div id="panel">
+
+    <div class="psec">
+      <div class="pt">Energy vs Position</div>
+      <canvas id="egraph" width="245" height="108"></canvas>
+      <div class="eleg">
+        <div class="eli"><div class="eld" style="background:#ff7733"></div>KE</div>
+        <div class="eli"><div class="eld" style="background:#33aaff"></div>PE</div>
+        <div class="eli"><div class="eld" style="background:#44ff88"></div>Total</div>
+        <div class="eli"><div class="eld" style="background:#ff3355"></div>Lost</div>
+      </div>
+      <div class="ebar">
+        <div class="ebar-ke"  id="eKE"  style="width:0%"></div>
+        <div class="ebar-pe"  id="ePE"  style="width:0%"></div>
+        <div class="ebar-los" id="eLos" style="width:0%"></div>
+      </div>
+      <div class="ebar-lbl">
+        <span style="color:#ff7733">▌KE</span>
+        <span style="color:#33aaff">PE▐</span>
+        <span style="color:#ff3355">Lost</span>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="pt">Live Physics</div>
+      <div class="rg">
+        <div class="ri"><div class="rl">Velocity</div><div class="rv" id="rV" style="color:#ff7733">—</div></div>
+        <div class="ri"><div class="rl">Height</div><div class="rv" id="rH" style="color:#33aaff">—</div></div>
+        <div class="ri"><div class="rl">G-Force</div><div class="rv" id="rG" style="color:#ffc844">—</div></div>
+        <div class="ri"><div class="rl">Angle</div><div class="rv" id="rA">—</div></div>
+        <div class="ri"><div class="rl">KE</div><div class="rv" id="rKE" style="color:#ff7733">—</div></div>
+        <div class="ri"><div class="rl">PE</div><div class="rv" id="rPE" style="color:#33aaff">—</div></div>
+      </div>
+      <div class="lbar-w">
+        <div class="lbar-lbl"><span>Friction Loss</span><span id="lPct" style="color:#ff3355">0%</span></div>
+        <div class="lbar-t"><div class="lbar-f" id="lBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="psec">
+      <div class="pt">Physics Parameters</div>
+      <div class="sl">
+        <div class="sl-l">Gravity <span id="dG">9.8</span> m/s²</div>
+        <input type="range" id="slG" min="1" max="20" step="0.1" value="9.8" oninput="updateP()">
+      </div>
+      <div class="sl">
+        <div class="sl-l">Mass <span id="dM">800</span> kg</div>
+        <input type="range" id="slM" min="200" max="2000" step="100" value="800" oninput="updateP()">
+      </div>
+      <div class="sl">
+        <div class="sl-l">Friction μ <span id="dF">0.01</span></div>
+        <input type="range" id="slF" min="0" max="0.08" step="0.002" value="0.01" oninput="updateP()">
+      </div>
+    </div>
+
+    <div class="psec" style="flex:1;overflow-y:auto;">
+      <div class="pt">Energy Laws</div>
+      <div class="fbox ke"><strong>KE = ½mv²</strong><br><small>Kinetic: energy of motion</small></div>
+      <div class="fbox pe"><strong>PE = mgh</strong><br><small>Potential: stored height energy</small></div>
+      <div class="fbox te"><strong>E_total = KE + PE + E_friction</strong><br><small>Conservation of Energy</small></div>
+      <div style="font-size:0.6rem;color:#4a5a88;line-height:1.8;margin-top:0.4rem;">
+        Chain lift adds <strong style="color:#ffc844">mechanical work</strong><br>
+        W = F × d = ΔPE + ΔKE + W_friction<br>
+        At summit: KE≈0, PE=maximum<br>
+        Downhill: PE→KE (speed grows)
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DEMO GUIDE -->
+<div id="demo">
+  <div class="dsn" id="dNum">Step 1 of 7</div>
+  <div class="dti" id="dTit">Welcome</div>
+  <div class="dbo" id="dBod">Loading…</div>
+  <div class="dnav">
+    <button class="dbtn cl" onclick="hideDemo()">✕ Close</button>
+    <div class="ddots" id="dDots"></div>
+    <div class="dbtns">
+      <button class="dbtn" id="dPrv" onclick="dNav(-1)">← Prev</button>
+      <button class="dbtn nx" id="dNxt" onclick="dNav(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ══════════════════════════════════════════════════════════
+const [BG, TR, FG] = ['c0','c1','c2'].map(id => document.getElementById(id));
+const [bg, tr, fg] = [BG,TR,FG].map(c => c.getContext('2d'));
+const eg = document.getElementById('egraph').getContext('2d');
+const DPR = Math.min(devicePixelRatio||1, 2);
+
+let W = 0, H = 0;
+
+function resize() {
+  const wrap = document.getElementById('wrap');
+  W = wrap.clientWidth;
+  H = wrap.clientHeight;
+  [BG,TR,FG].forEach(c => {
+    c.width  = W * DPR;
+    c.height = H * DPR;
+    c.style.width  = W + 'px';
+    c.style.height = H + 'px';
+    c.getContext('2d').setTransform(DPR, 0, 0, DPR, 0, 0);
+  });
+  init();
+}
+window.addEventListener('resize', resize);
+
+// ══════════════════════════════════════════════════════════
+//  PHYSICS PARAMS
+// ══════════════════════════════════════════════════════════
+let G = 9.8, MASS = 800, MU = 0.01;
+
+function updateP() {
+  G    = +document.getElementById('slG').value;
+  MASS = +document.getElementById('slM').value;
+  MU   = +document.getElementById('slF').value;
+  document.getElementById('dG').textContent = G.toFixed(1);
+  document.getElementById('dM').textContent = MASS;
+  document.getElementById('dF').textContent = MU.toFixed(3);
+}
+
+// ══════════════════════════════════════════════════════════
+//  TRACK — defined as normalised waypoints, then splined
+//  Y: 0 = top of canvas, 1 = bottom.
+//  GND = 0.86 (ground line).
+//  Hill summit at y≈0.13 → very high up the screen.
+// ══════════════════════════════════════════════════════════
+const GND = 0.86;  // normalised y of ground level
+
+// These are the raw control points (normalised 0..1)
+const RAW = [
+  // ── flat start pad ──
+  [0.01, GND], [0.06, GND],
+  // ── chain lift hill ──
+  [0.10, GND], [0.15, 0.65], [0.20, 0.38], [0.24, 0.18],
+  // ── summit ──
+  [0.28, 0.13],
+  // ── big drop ──
+  [0.32, 0.18], [0.38, 0.42], [0.43, 0.68], [0.46, GND-0.02],
+  // ── valley → loop approach ──
+  [0.49, GND], [0.52, GND],
+  // ── loop (circular, manually shaped) ──
+  [0.55, GND],      // loop entry
+  [0.57, 0.74],     // bottom-left
+  [0.585, 0.55],    // left mid
+  [0.595, 0.38],    // upper-left
+  [0.610, 0.22],    // loop top-left
+  [0.625, 0.14],    // loop top
+  [0.640, 0.22],    // loop top-right
+  [0.655, 0.38],    // upper-right
+  [0.665, 0.55],    // right mid
+  [0.675, 0.74],    // bottom-right
+  [0.690, GND],     // loop exit
+  // ── run-out & brakes ──
+  [0.73, GND], [0.82, GND], [0.92, GND], [0.99, GND],
+];
+
+// ── Catmull-Rom spline ──
+function spline(pts, div) {
+  const out = [];
+  const ext = [pts[0], ...pts, pts[pts.length-1]];
+  for (let i = 1; i < ext.length-2; i++) {
+    const [p0,p1,p2,p3] = [ext[i-1], ext[i], ext[i+1], ext[i+2]];
+    for (let d = 0; d < div; d++) {
+      const t = d/div, t2=t*t, t3=t2*t;
+      out.push([
+        0.5*((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        0.5*((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3),
+      ]);
+    }
+  }
+  out.push(pts[pts.length-1]);
+  return out;
+}
+
+// track[] = array of [x,y] in PIXELS.  Built in init().
+let track = [];
+let summitI = 0;   // index of summit in track[]
+
+function buildTrack() {
+  // Scale normalised coords → pixels
+  const raw_px = RAW.map(([nx,ny]) => [nx*W, ny*H]);
+  track = spline(raw_px, 20);
+
+  // Summit = index of minimum canvas-y in first 45% of track
+  summitI = 0;
+  let minY = Infinity;
+  const scanEnd = Math.floor(track.length * 0.45);
+  for (let i = 0; i < scanEnd; i++) {
+    if (track[i][1] < minY) { minY = track[i][1]; summitI = i; }
+  }
+}
+
+// ── Height helpers ──
+// Ground line in pixels
+function gndPx() { return GND * H; }
+
+// Pixel-y → height in METRES above ground
+// (H * GND) is ground px; higher on screen = lower canvas-y = higher metres)
+const SCALE = 50; // total height of canvas in metres
+function px2m(py) { return Math.max((gndPx() - py) / (H / SCALE), 0); }
+
+// ══════════════════════════════════════════════════════════
+//  SIMULATION STATE
+// ══════════════════════════════════════════════════════════
+// The cart travels along track[].
+// 'pos' is floating-point index into track[] (e.g. 3.7 = 70% between track[3] and track[4])
+
+let pos      = 0;    // float index along track
+let speed    = 0;    // m/s
+let phase    = 'idle';   // 'lift' | 'gravity' | 'done'
+let E0       = 0;    // total mechanical energy (frozen at summit)
+let Elost    = 0;    // energy lost to friction so far
+let tDist    = 0;    // total travel distance for wheel spin
+let eHist    = [];   // energy history for graph
+let running  = false;
+let paused   = false;
+let rafID    = null;
+let lastT    = null;
+const MAX_EH = 245;
+
+// Chain lift speed (m/s) — slow visual crawl
+const LIFT_SPD = 3.0;
+
+function cartXY(p) {
+  // Interpolate position in track[] at float index p
+  const i = Math.floor(p);
+  const f = p - i;
+  const i0 = Math.min(i,   track.length-1);
+  const i1 = Math.min(i+1, track.length-1);
+  return [
+    track[i0][0] + f*(track[i1][0]-track[i0][0]),
+    track[i0][1] + f*(track[i1][1]-track[i0][1]),
+  ];
+}
+
+function cartAngle(p) {
+  const i = Math.max(0, Math.min(Math.floor(p), track.length-2));
+  return Math.atan2(track[i+1][1]-track[i][1], track[i+1][0]-track[i][0]);
+}
+
+// Arc-length from index i to i+1 in PIXELS
+function segLen(i) {
+  const a = track[i], b = track[Math.min(i+1, track.length-1)];
+  return Math.hypot(b[0]-a[0], b[1]-a[1]);
+}
+
+// Convert a speed in m/s to float-index-units/second
+// 1 index unit ≈ segLen(i) pixels.  Average seg length used for approx.
+// But we do it properly: advance by pixels per second = spd_m * px_per_m
+const PX_PER_M = () => H / SCALE;
+
+function init() {
+  buildTrack();
+  pos   = 0;
+  speed = 0;
+  phase = 'idle';
+  E0    = 0;
+  Elost = 0;
+  tDist = 0;
+  eHist = [];
+  running = false;
+  lastT   = null;
+  drawBG();
+  drawTrack();
+  fg.clearRect(0,0,W,H);
+  // Draw cart at start
+  const [cx,cy] = cartXY(0);
+  drawCart(cx, cy, cartAngle(0), 0);
+  clearHUD();
+  drawEGraph();
+  document.getElementById('pbar').style.width = '0%';
+}
+
+// ══════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ══════════════════════════════════════════════════════════
+function loop(ts) {
+  if (lastT === null) lastT = ts;
+  const dt = Math.min((ts - lastT) / 1000, 0.03);
+  lastT = ts;
+
+  if (running && !paused) step(dt);
+
+  fg.clearRect(0,0,W,H);
+  const [cx,cy] = cartXY(pos);
+  const ang = cartAngle(pos);
+  if (speed > 6) drawSpeedFX(cx, cy, ang);
+  drawCart(cx, cy, ang, tDist);
+
+  rafID = requestAnimationFrame(loop);
+}
+
+// ══════════════════════════════════════════════════════════
+//  PHYSICS STEP — THE KEY FUNCTION
+//
+//  Two clear phases:
+//
+//  PHASE 1 — LIFT (pos < summitI)
+//    The chain motor pulls the cart.
+//    We move the cart at LIFT_SPD m/s.
+//    No energy conservation yet — motor is doing work.
+//    We track PE gain as cart climbs.
+//
+//  PHASE 2 — GRAVITY (pos >= summitI)
+//    Chain disengages. Total energy frozen = E0.
+//    E0 = KE_summit + PE_summit
+//    At every point: KE = E0 - PE - Elost  → speed = sqrt(2*KE/m)
+// ══════════════════════════════════════════════════════════
+function step(dt) {
+  if (phase === 'done') return;
+
+  const [cx, cy] = cartXY(pos);
+  const h = px2m(cy);   // current height in metres
+
+  // ─── PHASE 1: CHAIN LIFT ───────────────────────────────
+  if (phase === 'lift') {
+
+    speed = LIFT_SPD;
+
+    // Advance cart by LIFT_SPD m/s converted to pixel-distance, then to index units
+    const dpx = LIFT_SPD * PX_PER_M() * dt;   // pixels to travel
+    advanceByPixels(dpx);
+
+    // Has the cart reached the summit?
+    if (pos >= summitI) {
+      pos   = summitI;  // snap exactly to summit
+      phase = 'gravity';
+
+      // *** FREEZE total energy at the summit ***
+      const [sx, sy] = cartXY(summitI);
+      const hSummit  = px2m(sy);
+      const peSummit = MASS * G * hSummit;
+      const keSummit = 0.5 * MASS * LIFT_SPD * LIFT_SPD;
+      E0 = peSummit + keSummit + Elost;  // conservation starts here
+
+      setPhaseUI('gravity');
+    }
+
+  // ─── PHASE 2: GRAVITY / ENERGY CONSERVATION ───────────
+  } else if (phase === 'gravity') {
+
+    // KE = E0 - PE - Elost
+    const pe   = MASS * G * h;
+    const ke   = Math.max(E0 - Elost - pe, 0);
+    speed      = Math.sqrt(2 * ke / MASS);
+    speed      = Math.max(speed, 0.4);  // never fully stop
+
+    const dpx  = speed * PX_PER_M() * dt;
+    advanceByPixels(dpx);
+
+    if (pos >= track.length - 1) {
+      phase = 'done';
+      running = false;
+      paused  = false;
+      document.getElementById('btnLaunch').disabled = false;
+      document.getElementById('btnPause').disabled  = true;
+      document.getElementById('btnPause').textContent = '⏸ Pause';
+      setPhaseUI('done');
+    }
+  }
+
+  // ─── FRICTION (both phases) ───────────────────────────
+  // dElost = μ * m * g * cosθ * ds
+  const ang  = cartAngle(pos);
+  const cosT = Math.abs(Math.cos(ang));
+  Elost     += MU * MASS * G * cosT * speed * dt;
+  tDist     += speed * dt;
+
+  // ─── UPDATE HUD ───────────────────────────────────────
+  const hNow = px2m(cartXY(pos)[1]);
+  const peNow = MASS * G * hNow;
+  const keNow = (phase === 'gravity') ? Math.max(E0 - Elost - peNow, 0)
+                                      : 0.5 * MASS * speed * speed;
+  const teNow = keNow + peNow;
+
+  if (eHist.length >= MAX_EH) eHist.shift();
+  eHist.push({ ke:keNow, pe:peNow, te:teNow, lost:Elost });
+
+  updateHUD(speed, hNow, keNow, peNow, teNow, ang);
+  drawEGraph();
+  document.getElementById('pbar').style.width = (pos / (track.length-1) * 100) + '%';
+
+  // Phase label updates during gravity
+  if (phase === 'gravity') {
+    const p = pos / track.length;
+    if      (p < 0.43)  setPhaseUI('drop');
+    else if (p < 0.52)  setPhaseUI('approach');
+    else if (p < 0.73)  setPhaseUI('loop');
+    else                setPhaseUI('brake');
+  }
+}
+
+// ─── Advance cart by `dpx` pixels along track ─────────
+// Correctly walks segment by segment and always updates pos
+function advanceByPixels(dpx) {
+  let rem = dpx;
+  while (rem > 0) {
+    const i   = Math.floor(pos);
+    if (i >= track.length - 1) { pos = track.length - 1; break; }
+
+    const frac   = pos - i;
+    // Remaining pixels in current segment
+    const sl     = segLen(i);
+    const remInSeg = sl * (1 - frac);
+
+    if (rem >= remInSeg) {
+      rem -= remInSeg;
+      pos  = i + 1;   // jump to next segment start
+    } else {
+      // Land inside this segment
+      pos += rem / sl;
+      pos  = Math.min(pos, i + 1);
+      rem  = 0;
+    }
+  }
+  pos = Math.min(pos, track.length - 1);
+}
+
+// ══════════════════════════════════════════════════════════
+//  CONTROLS
+// ══════════════════════════════════════════════════════════
+function launch() {
+  if (!track.length) buildTrack();
+  pos   = 0;
+  speed = 0;
+  phase = 'lift';
+  E0    = 0;
+  Elost = 0;
+  tDist = 0;
+  eHist = [];
+  lastT = null;
+  running = true;
+  paused  = false;
+  document.getElementById('btnLaunch').disabled = true;
+  document.getElementById('btnPause').disabled  = false;
+  document.getElementById('btnPause').textContent = '⏸ Pause';
+  setPhaseUI('lift');
+  if (rafID) cancelAnimationFrame(rafID);
+  rafID = requestAnimationFrame(loop);
+}
+
+function reset() {
+  if (rafID) cancelAnimationFrame(rafID);
+  running = false;
+  paused  = false;
+  document.getElementById('btnLaunch').disabled = false;
+  document.getElementById('btnPause').disabled  = true;
+  document.getElementById('btnPause').textContent = '⏸ Pause';
+  init();
+  rafID = requestAnimationFrame(loop);
+}
+
+function togglePause() {
+  if (!running) return;
+  paused = !paused;
+  lastT  = null;  // prevent dt spike on resume
+  document.getElementById('btnPause').textContent = paused ? '▶ Resume' : '⏸ Pause';
+}
+
+// ══════════════════════════════════════════════════════════
+//  DRAWING — BACKGROUND
+// ══════════════════════════════════════════════════════════
+function drawBG() {
+  bg.clearRect(0,0,W,H);
+  const gY = gndPx();
+
+  // Sky gradient
+  const sky = bg.createLinearGradient(0,0,0,gY);
+  sky.addColorStop(0, '#04091a');
+  sky.addColorStop(0.55, '#0c1a3a');
+  sky.addColorStop(1, '#162848');
+  bg.fillStyle = sky; bg.fillRect(0,0,W,gY);
+
+  // Stars
+  for (let i=0;i<130;i++) {
+    const sx=(i*137.5)%W, sy=(i*97.3)%(gY*0.9);
+    const r=0.4+((i*19)%4)*0.35, a=0.3+((i*31)%12)*0.055;
+    bg.fillStyle=`rgba(255,255,255,${a})`;
+    bg.beginPath(); bg.arc(sx,sy,r,0,Math.PI*2); bg.fill();
+  }
+
+  // Moon
+  bg.save();
+  bg.fillStyle='rgba(255,248,210,0.92)'; bg.shadowColor='rgba(255,240,160,0.5)'; bg.shadowBlur=28;
+  bg.beginPath(); bg.arc(W*0.84,H*0.11,26,0,Math.PI*2); bg.fill();
+  bg.fillStyle='#0c1a3a'; bg.shadowBlur=0;
+  bg.beginPath(); bg.arc(W*0.84+9,H*0.11-3,22,0,Math.PI*2); bg.fill();
+  bg.restore();
+
+  // Far mountains
+  bg.fillStyle='#0b1830';
+  bg.beginPath(); bg.moveTo(0,gY);
+  [[0,.83],[.07,.68],[.13,.73],[.20,.61],[.28,.67],[.36,.56],[.44,.63],[.53,.59],[.61,.66],[.70,.57],[.79,.63],[.88,.60],[.96,.65],[1,.68],[1,.86]].forEach(([x,y])=>bg.lineTo(x*W,y*H));
+  bg.closePath(); bg.fill();
+
+  // Near dark hills
+  bg.fillStyle='#0c1c09';
+  bg.beginPath(); bg.moveTo(0,gY);
+  [[0,.87],[.12,.80],[.25,.84],[.40,.78],[.55,.82],[.70,.77],[.85,.81],[1,.78],[1,.86]].forEach(([x,y])=>bg.lineTo(x*W,y*H));
+  bg.closePath(); bg.fill();
+
+  // Ground fill
+  const gf = bg.createLinearGradient(0,gY,0,H);
+  gf.addColorStop(0,'#191508'); gf.addColorStop(1,'#090904');
+  bg.fillStyle=gf; bg.fillRect(0,gY,W,H-gY);
+
+  // Grass strip
+  bg.fillStyle='#2a440e'; bg.fillRect(0,gY-2,W,4);
+  bg.fillStyle='#3a5a14'; bg.fillRect(0,gY-4,W,3);
+
+  // Trees silhouette
+  bg.fillStyle='#0c1c07';
+  for(let t=8;t<W;t+=24+((t*11)%14)){
+    const th=15+((t*13)%22),tx=t,ty=gY-th;
+    bg.beginPath(); bg.moveTo(tx,gY);
+    bg.lineTo(tx-5,ty+8); bg.lineTo(tx-2,ty+8);
+    bg.lineTo(tx-3,ty+2); bg.lineTo(tx-1,ty+2);
+    bg.lineTo(tx,ty); bg.lineTo(tx+1,ty+2); bg.lineTo(tx+3,ty+2);
+    bg.lineTo(tx+2,ty+8); bg.lineTo(tx+5,ty+8);
+    bg.closePath(); bg.fill();
+  }
+
+  // Height labels
+  bg.fillStyle='rgba(255,255,255,0.18)'; bg.font='9px DM Mono'; bg.textAlign='left';
+  bg.strokeStyle='rgba(255,255,255,0.05)'; bg.lineWidth=0.5;
+  for(let m=5;m<=45;m+=5){
+    const py=gndPx()-m*(H/SCALE); if(py<5) continue;
+    bg.beginPath(); bg.moveTo(0,py); bg.lineTo(W,py); bg.stroke();
+    bg.fillText(m+'m',4,py-2);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  DRAWING — TRACK
+// ══════════════════════════════════════════════════════════
+function drawTrack() {
+  tr.clearRect(0,0,W,H);
+  if (track.length < 2) return;
+  const gY = gndPx();
+
+  // Ground shadow fill beneath track
+  tr.fillStyle='rgba(0,240,100,0.015)';
+  tr.beginPath(); tr.moveTo(track[0][0], gY);
+  track.forEach(([x,y]) => tr.lineTo(x,y));
+  tr.lineTo(track[track.length-1][0], gY);
+  tr.closePath(); tr.fill();
+
+  // Support pillars
+  tr.strokeStyle='rgba(90,70,30,0.45)'; tr.lineWidth=2.5;
+  for(let i=0;i<track.length;i+=22){
+    const [x,y]=track[i];
+    if(y < gY-3){
+      tr.beginPath(); tr.moveTo(x,y+3); tr.lineTo(x,gY); tr.stroke();
+    }
+  }
+  // Cross-bracing on tall pillars
+  tr.strokeStyle='rgba(90,70,30,0.25)'; tr.lineWidth=1.5;
+  for(let i=0;i<track.length-22;i+=22){
+    const [x1,y1]=track[i], [x2,y2]=track[Math.min(i+22,track.length-1)];
+    if(y1 < gY-20 && y2 < gY-20){
+      tr.beginPath(); tr.moveTo(x1,y1+(gY-y1)*0.4); tr.lineTo(x2,y2+(gY-y2)*0.4); tr.stroke();
+    }
+  }
+
+  // Cross-ties (wooden sleepers)
+  tr.lineWidth=2.5; tr.lineCap='round';
+  for(let i=4;i<track.length-1;i+=6){
+    const [x,y]=track[i], [xn,yn]=track[i+1];
+    const dx=xn-x,dy=yn-y,len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len*6, ny=dx/len*6;
+    const br=85+((i*7)%30);
+    tr.strokeStyle=`rgb(${br},${Math.floor(br*0.65)},${Math.floor(br*0.3)})`;
+    tr.beginPath(); tr.moveTo(x+nx,y+ny); tr.lineTo(x-nx,y-ny); tr.stroke();
+  }
+
+  // Chain lift indicator (dashed yellow on uphill section)
+  const liftEnd = Math.floor(summitI);
+  tr.setLineDash([5,5]); tr.strokeStyle='rgba(255,200,50,0.45)'; tr.lineWidth=2;
+  tr.beginPath(); tr.moveTo(track[0][0],track[0][1]);
+  for(let i=1;i<=liftEnd;i++) tr.lineTo(track[i][0],track[i][1]);
+  tr.stroke(); tr.setLineDash([]);
+
+  // Both rails (offset ±4px perpendicular)
+  for(const off of [-4,4]){
+    // Metallic gradient
+    const rg = tr.createLinearGradient(track[0][0],0,track[track.length-1][0],0);
+    rg.addColorStop(0,   '#b08840');
+    rg.addColorStop(0.35,'#e8c860');
+    rg.addColorStop(0.65,'#c09040');
+    rg.addColorStop(1,   '#906828');
+    tr.strokeStyle=rg; tr.lineWidth=2.8; tr.lineJoin='round'; tr.lineCap='round';
+    tr.shadowColor='rgba(200,160,70,0.25)'; tr.shadowBlur=5;
+    tr.beginPath();
+    for(let i=0;i<track.length;i++){
+      const [x,y]=track[i], [xn,yn]=track[Math.min(i+1,track.length-1)];
+      const dx=xn-x,dy=yn-y,len=Math.hypot(dx,dy)||1;
+      const nx=-dy/len*off, ny=dx/len*off;
+      if(i===0) tr.moveTo(x+nx,y+ny); else tr.lineTo(x+nx,y+ny);
+    }
+    tr.stroke();
+    // Highlight
+    tr.strokeStyle='rgba(255,235,150,0.35)'; tr.lineWidth=0.8; tr.shadowBlur=0;
+    tr.beginPath();
+    for(let i=0;i<track.length;i++){
+      const [x,y]=track[i], [xn,yn]=track[Math.min(i+1,track.length-1)];
+      const dx=xn-x,dy=yn-y,len=Math.hypot(dx,dy)||1;
+      const nx=-dy/len*off, ny=dx/len*off;
+      if(i===0) tr.moveTo(x+nx,y+ny); else tr.lineTo(x+nx,y+ny);
+    }
+    tr.stroke();
+  }
+  tr.shadowBlur=0;
+
+  // ── Labels on track ──
+  // Summit label
+  const [sx,sy]=track[summitI];
+  tr.fillStyle='rgba(255,220,80,0.75)'; tr.font='bold 11px DM Mono'; tr.textAlign='center';
+  tr.fillText('SUMMIT', sx, sy-18);
+  tr.strokeStyle='rgba(255,220,80,0.25)'; tr.lineWidth=1; tr.setLineDash([2,4]);
+  tr.beginPath(); tr.moveTo(sx,sy-12); tr.lineTo(sx,sy-5); tr.stroke(); tr.setLineDash([]);
+
+  // Loop top label
+  const loopTopI = Math.floor(track.length*0.60);
+  const [lx,ly]=track[loopTopI];
+  tr.fillStyle='rgba(100,180,255,0.7)';
+  tr.fillText('LOOP TOP', lx, ly-14);
+}
+
+// ══════════════════════════════════════════════════════════
+//  DRAWING — CART
+// ══════════════════════════════════════════════════════════
+function drawCart(cx, cy, ang, dist) {
+  fg.save();
+  fg.translate(cx, cy);
+  fg.rotate(ang);
+
+  const s = Math.min(W, H) / 780;   // scale factor
+  const S = Math.max(s, 0.65);
+
+  // Ground shadow (unrotated)
+  fg.rotate(-ang);
+  fg.fillStyle='rgba(0,0,0,0.28)';
+  fg.beginPath(); fg.ellipse(0,15*S,28*S,5*S,0,0,Math.PI*2); fg.fill();
+  fg.rotate(ang);
+
+  // Wheels
+  const WH = [[-20*S,9*S],[20*S,9*S],[-10*S,9*S],[10*S,9*S]];
+  WH.forEach(([wx,wy]) => {
+    fg.fillStyle='#1c1c1c';
+    fg.beginPath(); fg.arc(wx,wy,6*S,0,Math.PI*2); fg.fill();
+    fg.strokeStyle='#4a4a4a'; fg.lineWidth=1.5*S;
+    fg.beginPath(); fg.arc(wx,wy,5*S,0,Math.PI*2); fg.stroke();
+    // Spokes
+    const r = dist * 1.8;
+    fg.strokeStyle='#777'; fg.lineWidth=S;
+    fg.beginPath();
+    fg.moveTo(wx+Math.cos(r)*4*S, wy+Math.sin(r)*4*S);
+    fg.lineTo(wx-Math.cos(r)*4*S, wy-Math.sin(r)*4*S);
+    fg.moveTo(wx+Math.cos(r+1.57)*4*S, wy+Math.sin(r+1.57)*4*S);
+    fg.lineTo(wx-Math.cos(r+1.57)*4*S, wy-Math.sin(r+1.57)*4*S);
+    fg.stroke();
+    // Hubcap
+    fg.fillStyle='#999';
+    fg.beginPath(); fg.arc(wx,wy,1.8*S,0,Math.PI*2); fg.fill();
+  });
+
+  // Underframe
+  fg.fillStyle='#252525';
+  fg.beginPath(); fg.roundRect(-25*S,1*S,50*S,9*S,2*S); fg.fill();
+
+  // Cart body
+  const bod = fg.createLinearGradient(-22*S,-20*S,22*S,8*S);
+  bod.addColorStop(0,'#ff5533'); bod.addColorStop(0.35,'#cc2200');
+  bod.addColorStop(0.75,'#aa1800'); bod.addColorStop(1,'#881000');
+  fg.fillStyle=bod;
+  fg.beginPath();
+  fg.moveTo(-25*S, 2*S);
+  fg.lineTo(-27*S,-10*S);
+  fg.lineTo(-19*S,-20*S);
+  fg.lineTo( 19*S,-20*S);
+  fg.lineTo( 27*S,-10*S);
+  fg.lineTo( 25*S,  2*S);
+  fg.closePath(); fg.fill();
+
+  // Gold stripe
+  fg.strokeStyle='rgba(255,200,60,0.65)'; fg.lineWidth=1.8*S;
+  fg.beginPath(); fg.moveTo(-21*S,-5*S); fg.lineTo(21*S,-5*S); fg.stroke();
+
+  // Windows
+  const wg = fg.createLinearGradient(-12*S,-18*S,-12*S,-9*S);
+  wg.addColorStop(0,'rgba(160,225,255,0.88)'); wg.addColorStop(1,'rgba(80,160,220,0.65)');
+  fg.fillStyle=wg;
+  [-16*S, 4*S].forEach(wx => {
+    fg.beginPath(); fg.roundRect(wx,-17*S,12*S,9*S,1.5*S); fg.fill();
+    fg.strokeStyle='rgba(255,255,255,0.25)'; fg.lineWidth=S; fg.stroke();
+    fg.fillStyle='rgba(255,255,255,0.55)';
+    fg.beginPath(); fg.roundRect(wx+1*S,-16*S,4*S,2.5*S,S); fg.fill();
+    fg.fillStyle=wg;
+  });
+
+  // Passengers
+  fg.fillStyle='rgba(255,255,255,0.75)';
+  fg.beginPath(); fg.arc(-10*S,-14*S,2.5*S,0,Math.PI*2); fg.fill();
+  fg.beginPath(); fg.arc( 10*S,-14*S,2.5*S,0,Math.PI*2); fg.fill();
+
+  // Nose
+  fg.fillStyle='#ff6644';
+  fg.beginPath(); fg.moveTo(23*S,-10*S); fg.lineTo(29*S,-5*S); fg.lineTo(27*S,2*S); fg.closePath(); fg.fill();
+
+  // Plate
+  fg.fillStyle='rgba(0,0,0,0.5)';
+  fg.beginPath(); fg.roundRect(-7*S,-9*S,14*S,5*S,S); fg.fill();
+  fg.fillStyle='#ffc844'; fg.font=`bold ${6*S}px DM Mono`; fg.textAlign='center';
+  fg.fillText('CP-01',0,-5*S);
+
+  fg.restore();
+}
+
+function drawSpeedFX(cx, cy, ang) {
+  fg.save();
+  fg.translate(cx, cy);
+  const intensity = Math.min(speed/22, 1);
+  for(let i=0;i<5;i++){
+    const oy=(Math.random()-0.5)*28;
+    const len=(22+Math.random()*35)*intensity;
+    fg.strokeStyle=`rgba(255,200,80,${0.08+Math.random()*0.14})`;
+    fg.lineWidth=0.5+Math.random();
+    fg.beginPath();
+    fg.moveTo(-Math.cos(ang)*len+(Math.random()-0.5)*6, oy);
+    fg.lineTo(-Math.cos(ang)*len*1.6, oy);
+    fg.stroke();
+  }
+  // Sparks
+  if(speed > 14){
+    for(let i=0;i<3;i++){
+      const sx=-26+(Math.random()-0.5)*8, sy=(Math.random()-0.5)*12;
+      fg.fillStyle=Math.random()>0.5?'#ffc844':'#ff8833';
+      fg.globalAlpha=0.6+Math.random()*0.3;
+      fg.beginPath(); fg.arc(sx,sy,1+Math.random()*1.5,0,Math.PI*2); fg.fill();
+      fg.globalAlpha=1;
+    }
+  }
+  fg.restore();
+}
+
+// ══════════════════════════════════════════════════════════
+//  HUD
+// ══════════════════════════════════════════════════════════
+function fmtE(e) {
+  if(e>1e6) return (e/1e6).toFixed(2)+'MJ';
+  if(e>999) return (e/1e3).toFixed(1)+'kJ';
+  return e.toFixed(0)+'J';
+}
+
+function updateHUD(spd, h, ke, pe, te, ang) {
+  document.getElementById('sSpd').textContent = spd.toFixed(1)+' m/s';
+  document.getElementById('sH').textContent   = h.toFixed(1)+' m';
+  document.getElementById('sKE').textContent  = fmtE(ke);
+  document.getElementById('sPE').textContent  = fmtE(pe);
+  document.getElementById('sTE').textContent  = fmtE(te);
+
+  // G-force
+  const i2 = Math.min(Math.floor(pos), track.length-3);
+  let gf = 1;
+  if(i2>0){
+    const [ax,ay]=[track[i2-1][0]-2*track[i2][0]+track[i2+1][0], track[i2-1][1]-2*track[i2][1]+track[i2+1][1]];
+    const sl=segLen(i2)||1;
+    const curv=Math.hypot(ax,ay)/(sl*sl+0.01);
+    gf=Math.min(1+(spd*spd*curv)/G, 12);
+  }
+  document.getElementById('sGF').textContent = gf.toFixed(1)+'g';
+  document.getElementById('rV').textContent  = spd.toFixed(2)+' m/s';
+  document.getElementById('rH').textContent  = h.toFixed(2)+' m';
+  document.getElementById('rG').textContent  = gf.toFixed(2)+'g';
+  document.getElementById('rA').textContent  = (ang*180/Math.PI).toFixed(0)+'°';
+  document.getElementById('rKE').textContent = fmtE(ke);
+  document.getElementById('rPE').textContent = fmtE(pe);
+
+  const base = E0 || (ke+pe+Elost) || 1;
+  document.getElementById('eKE').style.width  = Math.min(ke/base*100,100).toFixed(1)+'%';
+  document.getElementById('ePE').style.width  = Math.min(pe/base*100,100).toFixed(1)+'%';
+  document.getElementById('eLos').style.width = Math.min(Elost/base*100,100).toFixed(1)+'%';
+
+  const lp = Math.min(Elost/base*100,100).toFixed(1);
+  document.getElementById('lBar').style.width = lp+'%';
+  document.getElementById('lPct').textContent = lp+'%';
+}
+
+function clearHUD() {
+  ['sSpd','sH','sKE','sPE','sTE','sGF','rV','rH','rG','rA','rKE','rPE'].forEach(id=>{
+    document.getElementById(id).textContent='—';
+  });
+  ['eKE','ePE','eLos','lBar'].forEach(id=>document.getElementById(id).style.width='0%');
+  document.getElementById('lPct').textContent='0%';
+}
+
+const PHASE_LABELS = {
+  idle:     {txt:'READY',        cls:'lift'},
+  lift:     {txt:'⛓ CHAIN LIFT', cls:'lift'},
+  gravity:  {txt:'🔻 SUMMIT',    cls:'fall'},
+  drop:     {txt:'🔻 BIG DROP',  cls:'fall'},
+  approach: {txt:'→ LOOP ENTRY', cls:'fall'},
+  loop:     {txt:'⭕ LOOP',      cls:'loop'},
+  brake:    {txt:'🛑 BRAKING',   cls:'fall'},
+  done:     {txt:'🏁 COMPLETE',  cls:'done'},
+};
+
+function setPhaseUI(key) {
+  const el = document.getElementById('sPhase');
+  const {txt,cls} = PHASE_LABELS[key] || {txt:key, cls:'lift'};
+  el.textContent = txt;
+  el.className = 'stat-v v-ph ' + cls;
+}
+
+// ══════════════════════════════════════════════════════════
+//  ENERGY GRAPH
+// ══════════════════════════════════════════════════════════
+function drawEGraph() {
+  const gW=245, gH=108;
+  eg.clearRect(0,0,gW,gH);
+  eg.fillStyle='rgba(2,5,14,0.9)'; eg.fillRect(0,0,gW,gH);
+  eg.strokeStyle='rgba(255,255,255,0.04)'; eg.lineWidth=0.5;
+  for(let i=1;i<4;i++){ eg.beginPath(); eg.moveTo(0,gH/4*i); eg.lineTo(gW,gH/4*i); eg.stroke(); }
+
+  if(eHist.length < 2){
+    eg.fillStyle='rgba(80,100,160,0.4)'; eg.font='10px DM Mono'; eg.textAlign='center';
+    eg.fillText('Launch to see energy flow', gW/2, gH/2); return;
+  }
+  const maxE = Math.max(...eHist.map(e=>e.te))*1.08 || 1;
+  const N = eHist.length;
+
+  function line(key, col, lw, dash=[]) {
+    eg.beginPath(); eg.strokeStyle=col; eg.lineWidth=lw;
+    eg.setLineDash(dash); eg.shadowColor=col; eg.shadowBlur=3;
+    eHist.forEach((e,i)=>{ const x=i/(MAX_EH-1)*gW, y=gH-(e[key]/maxE)*(gH-6)-2; i?eg.lineTo(x,y):eg.moveTo(x,y); });
+    eg.stroke(); eg.shadowBlur=0; eg.setLineDash([]);
+  }
+
+  // Fill areas
+  ['ke','pe'].forEach((k,ki)=>{
+    const cols=['rgba(255,119,51,0.1)','rgba(51,170,255,0.1)'];
+    eg.beginPath(); eg.fillStyle=cols[ki];
+    eHist.forEach((e,i)=>{ const x=i/(MAX_EH-1)*gW, y=gH-(e[k]/maxE)*(gH-6)-2; if(!i){eg.moveTo(x,gH);}eg.lineTo(x,y); });
+    eg.lineTo(gW,gH); eg.fill();
+  });
+
+  line('te','#44ff88',1.8,[4,3]);
+  line('ke','#ff7733',2);
+  line('pe','#33aaff',2);
+  line('lost','#ff3355',1.5);
+
+  // Cursor
+  const cx=(N-1)/(MAX_EH-1)*gW;
+  eg.strokeStyle='rgba(255,255,255,0.25)'; eg.lineWidth=1; eg.setLineDash([3,3]);
+  eg.beginPath(); eg.moveTo(cx,0); eg.lineTo(cx,gH); eg.stroke(); eg.setLineDash([]);
+}
+
+// ══════════════════════════════════════════════════════════
+//  DEMO GUIDE
+// ══════════════════════════════════════════════════════════
+const STEPS = [
+  {t:'Welcome to CoasterPhysics',
+   b:`This simulation shows how a roller coaster converts energy. It uses <strong>real physics equations</strong> — the same ones in your textbook. Press <strong>▶ Launch</strong> in the top bar to watch it run, or read through this guide first.`},
+  {t:'The Chain Lift Hill',
+   b:`The coaster starts by being pulled up a tall hill by a <strong>chain lift motor</strong>. This is mechanical energy input — the motor does <strong>Work = Force × Distance</strong>.<br>
+Watch the height and PE readings climb. The cart moves slowly and deliberately upward.`},
+  {t:'Potential Energy = mgh',
+   b:`As the cart climbs, it stores energy as <strong>Potential Energy</strong>:<br>
+<span class="eq">PE = m × g × h</span><br>
+At the <strong>SUMMIT</strong> (~38m high), PE is at its maximum and kinetic energy is nearly zero. The cart pauses at the top — all energy is stored.`},
+  {t:'Summit — Chain Disengages',
+   b:`At the summit, the chain lets go. From this point, <strong>no more energy enters</strong>. Total mechanical energy is frozen:<br>
+<span class="eq">E₀ = KE + PE = constant</span><br>
+Watch the <strong>green "Total E" line</strong> on the graph go flat (minus tiny friction losses).`},
+  {t:'The Big Drop — PE → KE',
+   b:`Gravity pulls the cart down the steep drop. PE converts into KE:<br>
+<span class="eq">KE = ½mv²  →  v = √(2gh)</span><br>
+Speed explodes. The <strong>orange KE bar</strong> surges as the blue PE bar falls. This is Conservation of Energy in action.`},
+  {t:'The Loop',
+   b:`The cart enters the vertical loop. At the <strong>bottom</strong>, speed is maximum. Climbing the loop converts KE back to PE. At the <strong>top of the loop</strong>, the cart needs enough KE to avoid falling — this requires sufficient entry speed.<br>
+G-force reaches <strong>3–6g</strong> at the bottom of the loop!`},
+  {t:'Try It — Change Physics!',
+   b:`Now <strong>hit Launch</strong> and watch it live! After riding:<br>
+• Lower <strong>gravity</strong> to Moon levels (1.6 m/s²) — slower, floatier<br>
+• Increase <strong>friction</strong> — does the cart make the loop?<br>
+• Change <strong>mass</strong> — notice speed doesn't change! (Both KE and PE scale with m)`},
+];
+
+let dStep = 0;
+
+function showDemo() {
+  dStep = 0; renderDemo();
+  document.getElementById('demo').classList.remove('hide');
+}
+function hideDemo() { document.getElementById('demo').classList.add('hide'); }
+function dNav(d) { dStep = Math.max(0, Math.min(STEPS.length-1, dStep+d)); renderDemo(); }
+function renderDemo() {
+  const s = STEPS[dStep];
+  document.getElementById('dNum').textContent = `Step ${dStep+1} of ${STEPS.length}`;
+  document.getElementById('dTit').textContent = s.t;
+  document.getElementById('dBod').innerHTML   = s.b;
+  document.getElementById('dDots').innerHTML  = STEPS.map((_,i)=>`<div class="ddot${i===dStep?' on':''}"></div>`).join('');
+  document.getElementById('dPrv').disabled    = dStep===0;
+  const nxt = document.getElementById('dNxt');
+  if(dStep===STEPS.length-1){ nxt.textContent='🚀 Launch!'; nxt.onclick=()=>{hideDemo();launch();}; }
+  else { nxt.textContent='Next →'; nxt.onclick=()=>dNav(1); }
+}
+
+// ══════════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════════
+resize();
+rafID = requestAnimationFrame(loop);
+showDemo();
+</script>
+</body>
+</html>
